@@ -164,7 +164,7 @@ function get_max_list_length {
   if [[ -z "$lname" ]]; then
     no_key
   else
-    echo "List-type key for pattern $pattern with max length is \"$lname\", having length as $max"
+    echo "List-type key for pattern \"$pattern\" with max length is \"$lname\", having length as $max"
   fi
 }
 # Actions
