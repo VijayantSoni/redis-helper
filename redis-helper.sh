@@ -25,6 +25,8 @@ ACTION_DELETE="key-del"
 ACTION_KEY_ALL="key-all"
 ACTION_LIST_MAX_KEY="key-list-max"
 ACTION_LIST_LENGTH="key-list-length"
+ACTION_SET_MAX_KEY="key-set-max"
+ACTION_SET_LENGTH="key-set-length"
 # Allowed actions
 
 # Allowed output modes and delims
@@ -97,6 +99,7 @@ eval set -- "$PARAMS"
 REDIS_CLI="redis-cli -h $host -p $port"
 REDIS_CLI_SCAN="redis-cli -h $host -p $port --scan --pattern \"$pattern\""
 REDIS_CLI_LLEN="redis-cli -h $host -p $port llen"
+REDIS_CLI_SCARD="redis-cli -h $host -p $port scard"
 # Redis commands
 
 
@@ -125,13 +128,18 @@ function del_key {
   echo "NOT IMPLEMENTED"
 }
 
+function get_redis_output {
+  cmd="$1"
+  result=`eval "$cmd"`
+  echo "$result"
+}
 
-function get_list_length {
-  # Output all list-type keys with their lengths in a file
+function get_iterable_length {
+  # Output all iterable-type keys with their lengths in a file
   get_keys false
 
   while read -r line; do
-    curr_len=`eval "${REDIS_CLI_LLEN} $line"`
+    curr_len="$(get_redis_output "$1 $line")"
 
     echo "$line $delim $curr_len" >> "$KEYS_LENGTH_FILE"
   done < "$KEYS_FILE"
@@ -145,15 +153,14 @@ function get_list_length {
   fi
 }
 
-
-function get_max_list_length {
-  # Get name of list-type key with max length, along with the length
+function get_max_iterable_length {
+  # Get name of iterable-type key with max length, along with the length
   get_keys false
 
   max=0
   lname=""
   while read -r line; do
-    curr_len=`eval "${REDIS_CLI_LLEN} $line"`
+    curr_len=`eval "$1 $line"`
 
     if [[ $curr_len > $max ]]; then
       max=$curr_len
@@ -164,8 +171,31 @@ function get_max_list_length {
   if [[ -z "$lname" ]]; then
     no_key
   else
-    echo "List-type key for pattern \"$pattern\" with max length is \"$lname\", having length as $max"
+    echo "$2-type key for pattern \"$pattern\" with max length is \"$lname\", having length as $max"
   fi
+}
+
+
+function get_list_length {
+  # Output all list-type keys with their lengths in a file
+  get_iterable_length "$REDIS_CLI_LLEN"
+}
+
+
+function get_max_list_length {
+  # Get name of list-type key with max length, along with the length
+  get_max_iterable_length "$REDIS_CLI_LLEN" "List"
+}
+
+function get_set_length {
+  # Output all set-type keys with their lengths in a file
+  get_iterable_length "$REDIS_CLI_SCARD"
+}
+
+
+function get_max_set_length {
+  # Get name of set-type key with max length, along with the length
+  get_max_iterable_length "$REDIS_CLI_SCARD" "Set"
 }
 # Actions
 
@@ -222,6 +252,14 @@ case "$action" in
     ;;
   "$ACTION_LIST_LENGTH")
     get_list_length
+    finalize
+    ;;
+  "$ACTION_SET_MAX_KEY")
+    get_max_set_length
+    finalize
+    ;;
+  "$ACTION_SET_LENGTH")
+    get_set_length
     finalize
     ;;
   *)  # Invalid action
